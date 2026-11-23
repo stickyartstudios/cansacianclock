@@ -11,6 +11,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Sindh · CT" />
   <meta name="mobile-web-app-capable" content="yes" />
+  <link id="apple-touch-icon" rel="apple-touch-icon" href="" />
   <link id="pwa-manifest" rel="manifest" href="" />
 
   <!-- Tailwind CSS & Google Fonts -->
@@ -268,18 +269,51 @@
   <script>
     /**
      * ============================================================================
-     * 1. PWA MANIFEST & ICON GENERATION (Zero External Files Needed)
+     * 1. PWA MANIFEST & HOME SCREEN ICON GENERATION (Android + iOS PNG Icon)
      * ============================================================================
      */
     (function setupPWAManifest() {
-      const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-        <rect width="512" height="512" rx="120" fill="#fed403"/>
-        <circle cx="256" cy="256" r="185" fill="#fffdf7"/>
-        <text x="256" y="242" text-anchor="middle" font-family="sans-serif" font-weight="800" font-size="92" fill="#7c3aed">IVC·CT</text>
-        <text x="256" y="325" text-anchor="middle" font-family="monospace" font-weight="700" font-size="56" fill="#1e1b2e">30:00</text>
-      </svg>`;
-      const iconUrl = 'data:image/svg+xml;base64,' + btoa(svgIcon);
+      const size = 512;
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
 
+      // Baby yellow rounded background
+      ctx.fillStyle = '#fed403';
+      ctx.beginPath();
+      ctx.roundRect(0, 0, size, size, 112);
+      ctx.fill();
+
+      // Inner warm cream circle
+      ctx.fillStyle = '#fffdf7';
+      ctx.beginPath();
+      ctx.arc(size / 2, size / 2, 186, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Soft pastel pink ring
+      ctx.strokeStyle = '#ffd6e7';
+      ctx.lineWidth = 12;
+      ctx.stroke();
+
+      // Top label: IVC · CT
+      ctx.fillStyle = '#7c3aed';
+      ctx.font = '800 84px Inter, system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('IVC·CT', size / 2, 224);
+
+      // Bottom clock badge: 30:00
+      ctx.fillStyle = '#1e1b2e';
+      ctx.font = '700 54px monospace';
+      ctx.fillText('30:00', size / 2, 314);
+
+      const pngIconUrl = canvas.toDataURL('image/png');
+
+      // Set iOS Safari Home Screen icon
+      document.getElementById('apple-touch-icon').setAttribute('href', pngIconUrl);
+
+      // Set Android / Chrome PWA Manifest icon
       const manifest = {
         name: 'IVC & Cansacian Calendar',
         short_name: 'Sindh · CT',
@@ -288,8 +322,8 @@
         background_color: '#fdfbf7',
         theme_color: '#fed403',
         icons: [
-          { src: iconUrl, sizes: '192x192', type: 'image/svg+xml' },
-          { src: iconUrl, sizes: '512x512', type: 'image/svg+xml' }
+          { src: pngIconUrl, sizes: '192x192', type: 'image/png' },
+          { src: pngIconUrl, sizes: '512x512', type: 'image/png' }
         ]
       };
 
