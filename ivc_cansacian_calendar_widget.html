@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>IVC & Cansacian Calendar</title>
+
+  <!-- PWA & Mobile Home Screen Meta Tags -->
+  <meta name="theme-color" content="#fffdf7" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Sindh · CT" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <link id="pwa-manifest" rel="manifest" href="" />
+
+  <!-- Tailwind CSS & Google Fonts -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            babyYellow: '#fed403',
+            softYellow: '#fff8d6',
+            pastelPink: '#ffd6e7',
+            softPink: '#fff0f6',
+            softPurple: '#ede9fe',
+            accentPurple: '#7c3aed',
+            inkDark: '#1e1b2e',
+            inkMuted: '#6b6682',
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    /* Custom subtle glassmorphism and smooth transitions */
+    body {
+      background: radial-gradient(circle at 12% 15%, #fff6cc 0%, transparent 45%),
+                  radial-gradient(circle at 88% 20%, #ffe3ef 0%, transparent 48%),
+                  radial-gradient(circle at 50% 92%, #ede9fe 0%, transparent 55%),
+                  #fdfbf7;
+      min-height: 100dvh;
+      color: #1e1b2e;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .glass-card {
+      background: rgba(255, 255, 255, 0.78);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      box-shadow: 0 18px 45px -12px rgba(124, 58, 237, 0.08),
+                  0 6px 18px -6px rgba(254, 212, 3, 0.14);
+    }
+
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Hide scrollbar cleanly */
+    ::-webkit-scrollbar {
+      width: 0px;
+      background: transparent;
+    }
+  </style>
+</head>
+<body class="flex items-center justify-center p-3 sm:p-5 select-none">
+
+  <!-- Main Widget Card Container -->
+  <main class="glass-card w-full max-w-[400px] rounded-[30px] p-4 sm:p-5 flex flex-col gap-4 relative overflow-hidden">
+
+    <!-- Top Filter Bar: Era (IVC vs CE) & System (CT vs ST) -->
+    <header class="flex items-center justify-between gap-2">
+      <!-- Era Toggle: IVC (Default) vs CE -->
+      <div class="bg-softPurple/70 p-1 rounded-2xl flex items-center border border-purple-200/50" role="group" aria-label="Era System">
+        <button id="btn-era-ivc" onclick="setEra('IVC')"
+          class="px-3 py-1.5 rounded-xl text-xs font-bold tracking-wide transition-all duration-200">
+          IVC
+        </button>
+        <button id="btn-era-ce" onclick="setEra('CE')"
+          class="px-3 py-1.5 rounded-xl text-xs font-bold tracking-wide transition-all duration-200">
+          CE
+        </button>
+      </div>
+
+      <!-- Jump to Today / Live Reset Pill -->
+      <button id="btn-today" onclick="jumpToToday()"
+        class="hidden px-2.5 py-1.5 rounded-xl bg-pastelPink/80 hover:bg-pastelPink text-inkDark text-[11px] font-semibold transition-all active:scale-95">
+        Live Now
+      </button>
+
+      <!-- Calendar/Clock Toggle: CT (Default) vs ST -->
+      <div class="bg-softPurple/70 p-1 rounded-2xl flex items-center border border-purple-200/50" role="group" aria-label="Time System">
+        <button id="btn-sys-ct" onclick="setSystem('CT')"
+          class="px-3 py-1.5 rounded-xl text-xs font-bold tracking-wide transition-all duration-200">
+          CT
+        </button>
+        <button id="btn-sys-st" onclick="setSystem('ST')"
+          class="px-3 py-1.5 rounded-xl text-xs font-bold tracking-wide transition-all duration-200">
+          ST
+        </button>
+      </div>
+    </header>
+
+    <!-- Hero Clock & Primary Date Display -->
+    <section class="rounded-[24px] bg-gradient-to-br from-white/95 via-softYellow/45 to-softPink/55 border border-white p-4 shadow-sm flex flex-col items-center text-center relative">
+      <!-- Top Subtle Badge -->
+      <div class="flex items-center gap-1.5 mb-1">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span id="clock-mode-label" class="text-[11px] font-semibold uppercase tracking-widest text-inkMuted">
+          Cansacian Time · 30h Clock
+        </span>
+      </div>
+
+      <!-- Live Ticking Clock -->
+      <div id="live-clock" class="font-mono text-3xl sm:text-[34px] font-bold tracking-tight text-inkDark tabular-nums leading-tight my-0.5">
+        00:00:00
+      </div>
+
+      <!-- Primary Formatted Date -->
+      <div id="hero-primary-date" class="text-sm sm:text-[15px] font-bold text-accentPurple mt-1">
+        28 Nov 5326 (Anq III)
+      </div>
+    </section>
+
+    <!-- Calendar Navigation & Month Header -->
+    <section class="flex flex-col gap-2.5">
+      <div class="flex items-center justify-between px-1">
+        <button onclick="changeMonth(-1)" aria-label="Previous Month"
+          class="w-9 h-9 rounded-2xl bg-white/80 hover:bg-babyYellow/40 border border-purple-100 flex items-center justify-center text-inkDark font-bold transition-all active:scale-90">
+          ‹
+        </button>
+
+        <div class="text-center">
+          <h2 id="cal-month-title" class="text-sm font-extrabold text-inkDark tracking-tight">
+            Nov (Anq III)
+          </h2>
+          <p id="cal-year-subtitle" class="text-[11px] font-semibold text-accentPurple">
+            5326
+          </p>
+        </div>
+
+        <button onclick="changeMonth(1)" aria-label="Next Month"
+          class="w-9 h-9 rounded-2xl bg-white/80 hover:bg-babyYellow/40 border border-purple-100 flex items-center justify-center text-inkDark font-bold transition-all active:scale-90">
+          ›
+        </button>
+      </div>
+
+      <!-- Weekday / Cycle Column Headers -->
+      <div id="calendar-headers" class="grid grid-cols-6 gap-1.5 text-center px-0.5">
+        <!-- Populated dynamically: 6 cols for 30-day CT months, 7 cols for ST months -->
+      </div>
+
+      <!-- Calendar Day Grid -->
+      <div id="calendar-grid" class="grid grid-cols-6 gap-1.5">
+        <!-- Populated dynamically -->
+      </div>
+    </section>
+
+    <!-- Selected Day Inspector & Date Calculator Trigger -->
+    <footer class="rounded-2xl bg-white/75 border border-purple-100/80 p-3 flex items-center justify-between gap-2">
+      <div class="min-w-0 flex-1">
+        <div id="inspector-primary" class="text-xs font-bold text-inkDark truncate">
+          28 Nov 5326 (Anq III)
+        </div>
+      </div>
+
+      <button onclick="toggleConverterModal(true)"
+        class="shrink-0 px-3 py-2 rounded-xl bg-babyYellow hover:brightness-95 text-inkDark text-xs font-bold shadow-sm transition-all active:scale-95">
+        Date Calc
+      </button>
+    </footer>
+
+    <!-- Bidirectional CT <-> ST Date Calculator Modal -->
+    <div id="converter-modal" class="hidden absolute inset-0 bg-white/95 backdrop-blur-xl z-20 p-5 flex flex-col justify-between overflow-y-auto">
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-base font-extrabold text-inkDark">CT ↔ ST Date Calculator</h3>
+            <p id="calc-modal-subtitle" class="text-[11px] text-inkMuted">30-day CT months · Epoch 1 Mar, Year 1 IVC</p>
+          </div>
+          <button onclick="toggleConverterModal(false)"
+            class="w-8 h-8 rounded-xl bg-softPurple text-inkDark font-bold flex items-center justify-center">
+            ✕
+          </button>
+        </div>
+
+        <!-- Direction Switcher -->
+        <div class="grid grid-cols-2 gap-1.5 bg-softPurple/70 p-1 rounded-2xl border border-purple-200/50">
+          <button id="calc-dir-ct" onclick="setCalcDirection('CT_TO_ST')"
+            class="py-1.5 rounded-xl text-xs font-bold transition-all">
+            CT → ST
+          </button>
+          <button id="calc-dir-st" onclick="setCalcDirection('ST_TO_CT')"
+            class="py-1.5 rounded-xl text-xs font-bold transition-all">
+            ST → CT
+          </button>
+        </div>
+
+        <!-- CT Input Panel (30-Day Rule) -->
+        <div id="calc-panel-ct" class="space-y-2.5">
+          <label id="calc-ct-label" class="block text-[11px] font-bold uppercase tracking-wider text-inkMuted">
+            Cansacian Date (IVC · 30-Day Months)
+          </label>
+          <div class="grid grid-cols-3 gap-2">
+            <select id="calc-ct-day" onchange="runDateCalculation()"
+              class="px-2.5 py-2.5 rounded-2xl bg-softPurple/40 border border-purple-200 text-xs font-bold text-inkDark focus:outline-none focus:border-accentPurple">
+            </select>
+            <select id="calc-ct-month" onchange="onCtMonthSelectChange()"
+              class="px-2.5 py-2.5 rounded-2xl bg-softPurple/40 border border-purple-200 text-xs font-bold text-inkDark focus:outline-none focus:border-accentPurple">
+            </select>
+            <input id="calc-ct-year" type="number" value="4322" oninput="runDateCalculation()"
+              class="px-2.5 py-2.5 rounded-2xl bg-softPurple/40 border border-purple-200 text-xs font-bold text-inkDark focus:outline-none focus:border-accentPurple" />
+          </div>
+          <p class="text-[10px] text-inkMuted px-1">Tip: Use negative years for BCE / PS (e.g. 0 = 1 BCE / 1 PS)</p>
+        </div>
+
+        <!-- ST Input Panel -->
+        <div id="calc-panel-st" class="hidden space-y-2.5">
+          <label id="calc-st-label" class="block text-[11px] font-bold uppercase tracking-wider text-inkMuted">
+            Standard Date (IVC)
+          </label>
+          <div class="grid grid-cols-3 gap-2">
+            <select id="calc-st-day" onchange="runDateCalculation()"
+              class="px-2.5 py-2.5 rounded-2xl bg-softPurple/40 border border-purple-200 text-xs font-bold text-inkDark focus:outline-none focus:border-accentPurple">
+            </select>
+            <select id="calc-st-month" onchange="onStMonthOrYearChange()"
+              class="px-2.5 py-2.5 rounded-2xl bg-softPurple/40 border border-purple-200 text-xs font-bold text-inkDark focus:outline-none focus:border-accentPurple">
+            </select>
+            <input id="calc-st-year" type="number" value="5326" oninput="onStMonthOrYearChange()"
+              class="px-2.5 py-2.5 rounded-2xl bg-softPurple/40 border border-purple-200 text-xs font-bold text-inkDark focus:outline-none focus:border-accentPurple" />
+          </div>
+          <p class="text-[10px] text-inkMuted px-1">Tip: Use negative years for BCE / PS (e.g. 0 = 1 BCE / 1 PS)</p>
+        </div>
+
+        <!-- Calculated Equivalent Output Card -->
+        <div class="rounded-2xl bg-gradient-to-br from-softYellow/70 to-softPink/70 border border-white p-4 space-y-1">
+          <div id="calc-result-label" class="text-[11px] font-bold uppercase tracking-wider text-inkMuted">
+            Standard Date (IVC)
+          </div>
+          <div id="calc-result-main" class="text-base font-extrabold text-accentPurple">
+            Mon, 23 Nov 5326
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Quick Action -->
+      <div class="pt-3">
+        <button onclick="jumpToCalculatedDate()"
+          class="w-full py-2.5 px-3 rounded-xl bg-babyYellow hover:brightness-95 text-xs font-bold text-inkDark shadow-sm transition-all">
+          Open on Calendar
+        </button>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    /**
+     * ============================================================================
+     * 1. PWA MANIFEST & ICON GENERATION (Zero External Files Needed)
+     * ============================================================================
+     */
+    (function setupPWAManifest() {
+      const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+        <rect width="512" height="512" rx="120" fill="#fed403"/>
+        <circle cx="256" cy="256" r="185" fill="#fffdf7"/>
+        <text x="256" y="242" text-anchor="middle" font-family="sans-serif" font-weight="800" font-size="92" fill="#7c3aed">IVC·CT</text>
+        <text x="256" y="325" text-anchor="middle" font-family="monospace" font-weight="700" font-size="56" fill="#1e1b2e">30:00</text>
+      </svg>`;
+      const iconUrl = 'data:image/svg+xml;base64,' + btoa(svgIcon);
+
+      const manifest = {
+        name: 'IVC & Cansacian Calendar',
+        short_name: 'Sindh · CT',
+        start_url: '.',
+        display: 'standalone',
+        background_color: '#fdfbf7',
+        theme_color: '#fed403',
+        icons: [
+          { src: iconUrl, sizes: '192x192', type: 'image/svg+xml' },
+          { src: iconUrl, sizes: '512x512', type: 'image/svg+xml' }
+        ]
+      };
+
+      const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+      document.getElementById('pwa-manifest').setAttribute('href', URL.createObjectURL(manifestBlob));
+    })();
+
+    /**
+     * ============================================================================
+     * 2. UNIFIED EPOCH & CANSACIAN TIME (CT) MATHEMATICAL ENGINE
+     * ============================================================================
+     * Exact Unified Epoch Zero-Point:
+     *   1 March, Year 1 IVC (3300 BCE / astronomical year -3299)
+     *   00:00:00 ST  ===  00:00:00 CT  (Day 0, Second 0)
+     *
+     * Planetary Clock & Calendar Structure:
+     *   - Both CT and ST years advance on 1 March (counting from Year 1 IVC = 3300 BCE)
+     *   - 1 CT second = 1 ST second (1,000 ms)
+     *   - 1 CT minute = 60 seconds, 1 CT hour = 60 minutes (3,600 s)
+     *   - 1 CT day = 30 hours = 108,000 seconds (1.25 Earth days)
+     *   - 1 CT month = 30 CT days (Mar through Feb cycle)
+     *   - 1 Anquar = 3 CT months = 90 CT days (Anq I, II, III, IV)
+     *   - 1 CT year = 12 CT months = 4 Anquars = 360 CT days (450 Earth days)
+     */
+    const CT_SECONDS_PER_HOUR = 3600;
+    const CT_HOURS_PER_DAY = 30;
+    const CT_SECONDS_PER_DAY = CT_HOURS_PER_DAY * CT_SECONDS_PER_HOUR; // 108,000s
+    const CT_DAYS_PER_MONTH = 30;
+    const CT_MONTHS_PER_YEAR = 12;
+    const CT_DAYS_PER_YEAR = CT_DAYS_PER_MONTH * CT_MONTHS_PER_YEAR; // 360 CT days
+
+    // Exact Epoch Zero-Point: 1 March, Year 1 IVC (3300 BCE / -3299-03-01T00:00:00)
+    const EPOCH_ZERO_MS = (() => {
+      const d = new Date(0);
+      d.setFullYear(-3299, 2, 1); // Astronomical -3299 = 3300 BCE (Year 1 IVC), Month 2 = March, Day 1
+      d.setHours(0, 0, 0, 0);
+      return d.getTime();
+    })();
+
+    // Standard Gregorian months (Jan -> Dec)
+    const ST_MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const ST_WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    // Cansacian months starting in March (Mar -> Feb, 30 days each)
+    const CT_MONTHS = [
+      { name: 'Mar', anquar: 'Anq I' },
+      { name: 'Apr', anquar: 'Anq I' },
+      { name: 'May', anquar: 'Anq I' },
+      { name: 'Jun', anquar: 'Anq II' },
+      { name: 'Jul', anquar: 'Anq II' },
+      { name: 'Aug', anquar: 'Anq II' },
+      { name: 'Sep', anquar: 'Anq III' },
+      { name: 'Oct', anquar: 'Anq III' },
+      { name: 'Nov', anquar: 'Anq III' },
+      { name: 'Dec', anquar: 'Anq IV' },
+      { name: 'Jan', anquar: 'Anq IV' },
+      { name: 'Feb', anquar: 'Anq IV' }
+    ];
+
+    /**
+     * Converts any real-world timestamp (ms) into exact Cansacian Time & Date
+     * measured continuously from 1 March, Year 1 IVC at 00:00:00 ST = 00:00:00 CT.
+     */
+    function getCansacianFromMs(nowMs) {
+      const elapsedSeconds = Math.floor((nowMs - EPOCH_ZERO_MS) / 1000);
+      const totalCtDays = Math.floor(elapsedSeconds / CT_SECONDS_PER_DAY);
+      const secOfDay = ((elapsedSeconds % CT_SECONDS_PER_DAY) + CT_SECONDS_PER_DAY) % CT_SECONDS_PER_DAY;
+
+      const hour = Math.floor(secOfDay / CT_SECONDS_PER_HOUR);
+      const minute = Math.floor((secOfDay % CT_SECONDS_PER_HOUR) / 60);
+      const second = secOfDay % 60;
+
+      // CT Year (Year 1 = first 360 CT days starting 1 March, Year 1 IVC)
+      const ctYearIndex = Math.floor(totalCtDays / CT_DAYS_PER_YEAR);
+      const dayOfCtYear = ((totalCtDays % CT_DAYS_PER_YEAR) + CT_DAYS_PER_YEAR) % CT_DAYS_PER_YEAR;
+
+      const monthIndex = Math.floor(dayOfCtYear / CT_DAYS_PER_MONTH); // 0 = Mar .. 11 = Feb
+      const dayOfMonth = (dayOfCtYear % CT_DAYS_PER_MONTH) + 1;      // 1 .. 30
+      const ivcYear = ctYearIndex + 1; // Year 1 IVC at epoch start
+
+      return {
+        totalCtDays,
+        hour,
+        minute,
+        second,
+        ivcYear,
+        monthIndex,
+        dayOfMonth,
+        monthName: CT_MONTHS[monthIndex].name,
+        anquar: CT_MONTHS[monthIndex].anquar
+      };
+    }
+
+    /**
+     * Converts a CT calendar date (IVC year, 0-based monthIndex Mar=0..Feb=11, 1-based day 1..30)
+     * at 00:00:00 CT back into the exact Standard (ST) local Date object.
+     */
+    function getStDateFromCt(ivcYear, monthIndex, dayOfMonth) {
+      const ctYearIndex = ivcYear - 1;
+      const totalCtDays = (ctYearIndex * CT_DAYS_PER_YEAR) + (monthIndex * CT_DAYS_PER_MONTH) + (dayOfMonth - 1);
+      const targetMs = EPOCH_ZERO_MS + (totalCtDays * CT_SECONDS_PER_DAY * 1000);
+      return new Date(targetMs);
+    }
+
+    /**
+     * Formats an IVC year cleanly (no 'OS' suffix for positive years; 'PS' only for <= 0)
+     */
+    function formatIvcYear(ivcYear) {
+      if (ivcYear >= 1) return `${ivcYear}`;
+      return `${Math.abs(ivcYear - 1)} PS`;
+    }
+
+    /**
+     * Formats a CE year cleanly (no 'CE' suffix for positive years; 'BCE' only for <= 0)
+     */
+    function formatCeYear(astroYear) {
+      if (astroYear >= 1) return `${astroYear}`;
+      return `${Math.abs(astroYear - 1)} BCE`;
+    }
+
+    /**
+     * Standard Date -> IVC Year anchored on 1 March, Year 1 IVC (3300 BCE / -3299-03-01):
+     * - 1 Mar 3300 BCE (-3299) to 28 Feb 3299 BCE (-3298) = Year 1 IVC
+     * - 1 Mar 2026 CE to 28 Feb 2027 CE = Year 5326 IVC
+     * - 1 Jan 2026 CE to 28 Feb 2026 CE = Year 5325 IVC
+     */
+    function getStIvcYear(stDate) {
+      const astroYear = stDate.getFullYear();
+      const month = stDate.getMonth(); // 0 = Jan, 1 = Feb, 2 = Mar
+      return astroYear + 3300 - (month < 2 ? 1 : 0);
+    }
+
+    /**
+     * Converts an IVC year + Gregorian month (0..11) back to astronomical CE year
+     * anchored at 1 March, Year 1 IVC = 3300 BCE (-3299).
+     */
+    function stIvcYearToAstroCe(ivcYear, monthIndex) {
+      return ivcYear - 3300 + (monthIndex < 2 ? 1 : 0);
+    }
+
+    /**
+     * Epoch-synced Era Conversion for CT years (starting 1 March, Year 1 IVC = 3300 BCE):
+     */
+    function ctIvcYearToAstroCe(ivcYear) {
+      return ivcYear - 3300;
+    }
+
+    function astroCeToCtIvcYear(astroYear) {
+      return astroYear + 3300;
+    }
+
+    /**
+     * Formats any ST Date's year according to the active toggle (IVC vs CE)
+     */
+    function formatStYearInActiveEra(stDate) {
+      if (state.era === 'IVC') {
+        return formatIvcYear(getStIvcYear(stDate));
+      }
+      return formatCeYear(stDate.getFullYear());
+    }
+
+    /**
+     * Formats any CT IVC year according to the active toggle (IVC vs CE)
+     */
+    function formatCtYearInActiveEra(ctIvcYear) {
+      if (state.era === 'IVC') {
+        return formatIvcYear(ctIvcYear);
+      }
+      return formatCeYear(ctIvcYearToAstroCe(ctIvcYear));
+    }
+
+    /**
+     * ============================================================================
+     * 3. APPLICATION STATE & UI RENDERING
+     * ============================================================================
+     */
+    const state = {
+      era: localStorage.getItem('sindh_era') || 'IVC',       // 'IVC' | 'CE'
+      system: localStorage.getItem('sindh_sys') || 'CT',     // 'CT' | 'ST'
+      viewYear: null,   // Canonical year: CT -> ivcYear | ST -> astroYear
+      viewMonth: null,  // 0..11
+      selectedCt: null, // { ivcYear, monthIndex, dayOfMonth }
+      selectedSt: null, // Date object (local midnight)
+      calcDir: 'CT_TO_ST',
+      lastCalcResult: null
+    };
+
+    function pad2(n) {
+      return String(n).padStart(2, '0');
+    }
+
+    function initApp() {
+      const now = new Date();
+      const ctNow = getCansacianFromMs(now.getTime());
+
+      state.selectedCt = {
+        ivcYear: ctNow.ivcYear,
+        monthIndex: ctNow.monthIndex,
+        dayOfMonth: ctNow.dayOfMonth
+      };
+      state.selectedSt = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+      if (state.system === 'CT') {
+        state.viewYear = ctNow.ivcYear;
+        state.viewMonth = ctNow.monthIndex;
+      } else {
+        state.viewYear = now.getFullYear();
+        state.viewMonth = now.getMonth();
+      }
+
+      populateCalcDropdowns();
+      updateToggleStyles();
+      renderCalendar();
+      updateInspector();
+      tickClock();
+      setInterval(tickClock, 250);
+    }
+
+    function setEra(era) {
+      state.era = era;
+      localStorage.setItem('sindh_era', era);
+      updateToggleStyles();
+      tickClock();
+      renderCalendar();
+      updateInspector();
+      if (!document.getElementById('converter-modal').classList.contains('hidden')) {
+        syncCalcInputsToActiveEra();
+        runDateCalculation();
+      }
+    }
+
+    function setSystem(sys) {
+      if (state.system === sys) return;
+      state.system = sys;
+      localStorage.setItem('sindh_sys', sys);
+
+      // Sync viewed month/year seamlessly between CT and ST using the selected date
+      if (sys === 'CT') {
+        const ctFromSel = getCansacianFromMs(state.selectedSt.getTime());
+        state.selectedCt = {
+          ivcYear: ctFromSel.ivcYear,
+          monthIndex: ctFromSel.monthIndex,
+          dayOfMonth: ctFromSel.dayOfMonth
+        };
+        state.viewYear = ctFromSel.ivcYear;
+        state.viewMonth = ctFromSel.monthIndex;
+      } else {
+        const stFromSel = getStDateFromCt(
+          state.selectedCt.ivcYear,
+          state.selectedCt.monthIndex,
+          state.selectedCt.dayOfMonth
+        );
+        state.selectedSt = new Date(stFromSel.getFullYear(), stFromSel.getMonth(), stFromSel.getDate());
+        state.viewYear = state.selectedSt.getFullYear();
+        state.viewMonth = state.selectedSt.getMonth();
+      }
+
+      updateToggleStyles();
+      tickClock();
+      renderCalendar();
+      updateInspector();
+    }
+
+    function updateToggleStyles() {
+      const activeClass = 'bg-white text-inkDark shadow-sm';
+      const inactiveClass = 'text-inkMuted hover:text-inkDark';
+
+      document.getElementById('btn-era-ivc').className =
+        `px-3 py-1.5 rounded-xl text-xs font-bold tracking-wide transition-all duration-200 ${state.era === 'IVC' ? activeClass : inactiveClass}`;
+      document.getElementById('btn-era-ce').className =
+        `px-3 py-1.5 rounded-xl text-xs font-bold tracking-wide transition-all duration-200 ${state.era === 'CE' ? activeClass : inactiveClass}`;
+
+      document.getElementById('btn-sys-ct').className =
+        `px-3 py-1.5 rounded-xl text-xs font-bold tracking-wide transition-all duration-200 ${state.system === 'CT' ? activeClass : inactiveClass}`;
+      document.getElementById('btn-sys-st').className =
+        `px-3 py-1.5 rounded-xl text-xs font-bold tracking-wide transition-all duration-200 ${state.system === 'ST' ? activeClass : inactiveClass}`;
+    }
+
+    function tickClock() {
+      const now = new Date();
+      const ct = getCansacianFromMs(now.getTime());
+
+      const modeLabel = document.getElementById('clock-mode-label');
+      const clockEl = document.getElementById('live-clock');
+      const heroPrimary = document.getElementById('hero-primary-date');
+      const todayBtn = document.getElementById('btn-today');
+
+      if (state.system === 'CT') {
+        modeLabel.textContent = 'Cansacian Time · 30h Clock';
+        clockEl.textContent = `${pad2(ct.hour)}:${pad2(ct.minute)}:${pad2(ct.second)}`;
+        heroPrimary.textContent = `${ct.dayOfMonth} ${ct.monthName} ${formatCtYearInActiveEra(ct.ivcYear)} (${ct.anquar})`;
+
+        const isViewingCurrentMonth = (state.viewYear === ct.ivcYear && state.viewMonth === ct.monthIndex);
+        todayBtn.classList.toggle('hidden', isViewingCurrentMonth);
+      } else {
+        modeLabel.textContent = 'Standard Time · 24h Clock';
+        clockEl.textContent = `${pad2(now.getHours())}:${pad2(now.getMinutes())}:${pad2(now.getSeconds())}`;
+        heroPrimary.textContent = `${ST_WEEKDAYS[now.getDay()]}, ${now.getDate()} ${ST_MONTH_NAMES[now.getMonth()]} ${formatStYearInActiveEra(now)}`;
+
+        const isViewingCurrentMonth = (state.viewYear === now.getFullYear() && state.viewMonth === now.getMonth());
+        todayBtn.classList.toggle('hidden', isViewingCurrentMonth);
+      }
+    }
+
+    function selectCtDay(ivcYear, monthIndex, dayOfMonth) {
+      state.selectedCt = { ivcYear, monthIndex, dayOfMonth };
+      const mappedSt = getStDateFromCt(ivcYear, monthIndex, dayOfMonth);
+      state.selectedSt = new Date(mappedSt.getFullYear(), mappedSt.getMonth(), mappedSt.getDate());
+      renderCalendar();
+      updateInspector();
+      tickClock();
+    }
+
+    function selectStDay(astroYear, monthIndex, day) {
+      const d = new Date(0);
+      d.setFullYear(astroYear, monthIndex, day);
+      d.setHours(0, 0, 0, 0);
+      state.selectedSt = d;
+
+      const mappedCt = getCansacianFromMs(d.getTime());
+      state.selectedCt = {
+        ivcYear: mappedCt.ivcYear,
+        monthIndex: mappedCt.monthIndex,
+        dayOfMonth: mappedCt.dayOfMonth
+      };
+      renderCalendar();
+      updateInspector();
+      tickClock();
+    }
+
+    function updateInspector() {
+      const primaryEl = document.getElementById('inspector-primary');
+      if (state.system === 'CT') {
+        const { ivcYear, monthIndex, dayOfMonth } = state.selectedCt;
+        const m = CT_MONTHS[monthIndex];
+        primaryEl.textContent = `${dayOfMonth} ${m.name} ${formatCtYearInActiveEra(ivcYear)} (${m.anquar})`;
+      } else {
+        const d = state.selectedSt;
+        primaryEl.textContent = `${ST_WEEKDAYS[d.getDay()]}, ${d.getDate()} ${ST_MONTH_NAMES[d.getMonth()]} ${formatStYearInActiveEra(d)}`;
+      }
+    }
+
+    function changeMonth(delta) {
+      state.viewMonth += delta;
+      if (state.viewMonth > 11) {
+        state.viewMonth = 0;
+        state.viewYear += 1;
+      } else if (state.viewMonth < 0) {
+        state.viewMonth = 11;
+        state.viewYear -= 1;
+      }
+      renderCalendar();
+      tickClock();
+    }
+
+    function jumpToToday() {
+      const now = new Date();
+      const ctNow = getCansacianFromMs(now.getTime());
+
+      state.selectedCt = {
+        ivcYear: ctNow.ivcYear,
+        monthIndex: ctNow.monthIndex,
+        dayOfMonth: ctNow.dayOfMonth
+      };
+      state.selectedSt = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+      if (state.system === 'CT') {
+        state.viewYear = ctNow.ivcYear;
+        state.viewMonth = ctNow.monthIndex;
+      } else {
+        state.viewYear = now.getFullYear();
+        state.viewMonth = now.getMonth();
+      }
+
+      renderCalendar();
+      updateInspector();
+      tickClock();
+    }
+
+    function renderCalendar() {
+      const titleEl = document.getElementById('cal-month-title');
+      const subtitleEl = document.getElementById('cal-year-subtitle');
+      const headersEl = document.getElementById('calendar-headers');
+      const gridEl = document.getElementById('calendar-grid');
+
+      const now = new Date();
+      const ctNow = getCansacianFromMs(now.getTime());
+
+      headersEl.innerHTML = '';
+      gridEl.innerHTML = '';
+
+      if (state.system === 'CT') {
+        const m = CT_MONTHS[state.viewMonth];
+        titleEl.textContent = `${m.name} (${m.anquar})`;
+        subtitleEl.textContent = formatCtYearInActiveEra(state.viewYear);
+
+        headersEl.className = 'grid grid-cols-6 gap-1.5 text-center px-0.5';
+        gridEl.className = 'grid grid-cols-6 gap-1.5';
+
+        for (let col = 1; col <= 6; col++) {
+          const h = document.createElement('div');
+          h.className = 'text-[10px] font-bold uppercase tracking-wider text-inkMuted py-1';
+          h.textContent = `D${col}`;
+          headersEl.appendChild(h);
+        }
+
+        for (let day = 1; day <= CT_DAYS_PER_MONTH; day++) {
+          const isToday =
+            state.viewYear === ctNow.ivcYear &&
+            state.viewMonth === ctNow.monthIndex &&
+            day === ctNow.dayOfMonth;
+
+          const isSelected =
+            state.viewYear === state.selectedCt.ivcYear &&
+            state.viewMonth === state.selectedCt.monthIndex &&
+            day === state.selectedCt.dayOfMonth;
+
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.onclick = () => selectCtDay(state.viewYear, state.viewMonth, day);
+
+          let styleClasses = 'bg-white/75 hover:bg-softYellow/80 text-inkDark border-purple-100/70';
+          if (isSelected && isToday) {
+            styleClasses = 'bg-accentPurple text-white border-accentPurple ring-2 ring-babyYellow shadow-sm';
+          } else if (isSelected) {
+            styleClasses = 'bg-accentPurple text-white border-accentPurple shadow-sm';
+          } else if (isToday) {
+            styleClasses = 'bg-babyYellow text-inkDark border-babyYellow font-extrabold shadow-sm';
+          }
+
+          btn.className = `h-10 rounded-2xl border text-xs font-bold tabular-nums flex items-center justify-center transition-all active:scale-90 ${styleClasses}`;
+          btn.textContent = day;
+          gridEl.appendChild(btn);
+        }
+      } else {
+        const monthStart = new Date(0);
+        monthStart.setFullYear(state.viewYear, state.viewMonth, 1);
+        monthStart.setHours(0, 0, 0, 0);
+
+        const monthEnd = new Date(0);
+        monthEnd.setFullYear(state.viewYear, state.viewMonth + 1, 0);
+        const daysInMonth = monthEnd.getDate();
+        const startWeekday = monthStart.getDay();
+
+        titleEl.textContent = ST_MONTH_NAMES[state.viewMonth];
+        subtitleEl.textContent = formatStYearInActiveEra(monthStart);
+
+        headersEl.className = 'grid grid-cols-7 gap-1 text-center px-0.5';
+        gridEl.className = 'grid grid-cols-7 gap-1';
+
+        ST_WEEKDAYS.forEach((wd) => {
+          const h = document.createElement('div');
+          h.className = 'text-[10px] font-bold uppercase tracking-wider text-inkMuted py-1';
+          h.textContent = wd;
+          headersEl.appendChild(h);
+        });
+
+        for (let blank = 0; blank < startWeekday; blank++) {
+          const spacer = document.createElement('div');
+          spacer.className = 'h-10';
+          gridEl.appendChild(spacer);
+        }
+
+        for (let day = 1; day <= daysInMonth; day++) {
+          const isToday =
+            state.viewYear === now.getFullYear() &&
+            state.viewMonth === now.getMonth() &&
+            day === now.getDate();
+
+          const isSelected =
+            state.viewYear === state.selectedSt.getFullYear() &&
+            state.viewMonth === state.selectedSt.getMonth() &&
+            day === state.selectedSt.getDate();
+
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.onclick = () => selectStDay(state.viewYear, state.viewMonth, day);
+
+          let styleClasses = 'bg-white/75 hover:bg-softYellow/80 text-inkDark border-purple-100/70';
+          if (isSelected && isToday) {
+            styleClasses = 'bg-accentPurple text-white border-accentPurple ring-2 ring-babyYellow shadow-sm';
+          } else if (isSelected) {
+            styleClasses = 'bg-accentPurple text-white border-accentPurple shadow-sm';
+          } else if (isToday) {
+            styleClasses = 'bg-babyYellow text-inkDark border-babyYellow font-extrabold shadow-sm';
+          }
+
+          btn.className = `h-10 rounded-2xl border text-xs font-bold tabular-nums flex items-center justify-center transition-all active:scale-90 ${styleClasses}`;
+          btn.textContent = day;
+          gridEl.appendChild(btn);
+        }
+      }
+    }
+
+    /**
+     * ============================================================================
+     * 4. BIDIRECTIONAL CT <-> ST DATE CALCULATOR (30-Day Rule + Active Era)
+     * ============================================================================
+     */
+    function populateCalcDropdowns() {
+      const ctDaySel = document.getElementById('calc-ct-day');
+      const ctMonthSel = document.getElementById('calc-ct-month');
+      const stMonthSel = document.getElementById('calc-st-month');
+
+      ctDaySel.innerHTML = '';
+      for (let d = 1; d <= 30; d++) {
+        const opt = document.createElement('option');
+        opt.value = d;
+        opt.textContent = `Day ${d}`;
+        ctDaySel.appendChild(opt);
+      }
+
+      ctMonthSel.innerHTML = '';
+      CT_MONTHS.forEach((m, idx) => {
+        const opt = document.createElement('option');
+        opt.value = idx;
+        opt.textContent = `${m.name} (${m.anquar})`;
+        ctMonthSel.appendChild(opt);
+      });
+
+      stMonthSel.innerHTML = '';
+      ST_MONTH_NAMES.forEach((name, idx) => {
+        const opt = document.createElement('option');
+        opt.value = idx;
+        opt.textContent = name;
+        stMonthSel.appendChild(opt);
+      });
+
+      updateCalcStDayOptions(31);
+    }
+
+    function updateCalcStDayOptions(maxDays) {
+      const stDaySel = document.getElementById('calc-st-day');
+      const currentVal = parseInt(stDaySel.value, 10) || 1;
+      stDaySel.innerHTML = '';
+      for (let d = 1; d <= maxDays; d++) {
+        const opt = document.createElement('option');
+        opt.value = d;
+        opt.textContent = `Day ${d}`;
+        stDaySel.appendChild(opt);
+      }
+      stDaySel.value = Math.min(currentVal, maxDays);
+    }
+
+    function onCtMonthSelectChange() {
+      runDateCalculation();
+    }
+
+    function onStMonthOrYearChange() {
+      const monthIdx = parseInt(document.getElementById('calc-st-month').value, 10) || 0;
+      const rawYear = parseInt(document.getElementById('calc-st-year').value, 10);
+      const ivcYear = isNaN(rawYear) ? 5326 : rawYear;
+      const astroYear = state.era === 'IVC' ? stIvcYearToAstroCe(ivcYear, monthIdx) : ivcYear;
+
+      const d = new Date(0);
+      d.setFullYear(astroYear, monthIdx + 1, 0);
+      const maxDays = d.getDate() || 30;
+      updateCalcStDayOptions(maxDays);
+      runDateCalculation();
+    }
+
+    function syncCalcInputsToActiveEra() {
+      const eraTag = state.era;
+      document.getElementById('calc-modal-subtitle').textContent =
+        `30-day CT months · Epoch 1 Mar, Year 1 IVC (${eraTag} Years)`;
+      document.getElementById('calc-ct-label').textContent =
+        `Cansacian Date (${eraTag} · 30-Day Months)`;
+      document.getElementById('calc-st-label').textContent =
+        `Standard Date (${eraTag})`;
+
+      // Sync CT year input from selectedCt
+      const ctDisplayYear = state.era === 'IVC'
+        ? state.selectedCt.ivcYear
+        : ctIvcYearToAstroCe(state.selectedCt.ivcYear);
+      document.getElementById('calc-ct-day').value = state.selectedCt.dayOfMonth;
+      document.getElementById('calc-ct-month').value = state.selectedCt.monthIndex;
+      document.getElementById('calc-ct-year').value = ctDisplayYear;
+
+      // Sync ST year input from selectedSt
+      const stDisplayYear = state.era === 'IVC'
+        ? getStIvcYear(state.selectedSt)
+        : state.selectedSt.getFullYear();
+      document.getElementById('calc-st-month').value = state.selectedSt.getMonth();
+      document.getElementById('calc-st-year').value = stDisplayYear;
+      onStMonthOrYearChange();
+      document.getElementById('calc-st-day').value = state.selectedSt.getDate();
+    }
+
+    function toggleConverterModal(open) {
+      const modal = document.getElementById('converter-modal');
+      modal.classList.toggle('hidden', !open);
+      if (open) {
+        setCalcDirection(state.system === 'CT' ? 'CT_TO_ST' : 'ST_TO_CT');
+        loadSelectedIntoCalc();
+      }
+    }
+
+    function setCalcDirection(dir) {
+      state.calcDir = dir;
+      const activeBtn = 'bg-white text-inkDark shadow-sm';
+      const inactiveBtn = 'text-inkMuted hover:text-inkDark';
+
+      document.getElementById('calc-dir-ct').className =
+        `py-1.5 rounded-xl text-xs font-bold transition-all ${dir === 'CT_TO_ST' ? activeBtn : inactiveBtn}`;
+      document.getElementById('calc-dir-st').className =
+        `py-1.5 rounded-xl text-xs font-bold transition-all ${dir === 'ST_TO_CT' ? activeBtn : inactiveBtn}`;
+
+      document.getElementById('calc-panel-ct').classList.toggle('hidden', dir !== 'CT_TO_ST');
+      document.getElementById('calc-panel-st').classList.toggle('hidden', dir !== 'ST_TO_CT');
+
+      runDateCalculation();
+    }
+
+    function loadSelectedIntoCalc() {
+      syncCalcInputsToActiveEra();
+      runDateCalculation();
+    }
+
+    function runDateCalculation() {
+      const resLabel = document.getElementById('calc-result-label');
+      const resMain = document.getElementById('calc-result-main');
+      const eraTag = state.era;
+
+      if (state.calcDir === 'CT_TO_ST') {
+        const day = parseInt(document.getElementById('calc-ct-day').value, 10) || 1;
+        const monthIdx = parseInt(document.getElementById('calc-ct-month').value, 10) || 0;
+        const rawYear = parseInt(document.getElementById('calc-ct-year').value, 10);
+        const enteredYear = isNaN(rawYear) ? (state.era === 'IVC' ? 4322 : 1022) : rawYear;
+
+        const ctIvcYear = state.era === 'IVC' ? enteredYear : astroCeToCtIvcYear(enteredYear);
+        const mappedSt = getStDateFromCt(ctIvcYear, monthIdx, day);
+
+        resLabel.textContent = `Standard Date (${eraTag})`;
+        resMain.textContent = `${ST_WEEKDAYS[mappedSt.getDay()]}, ${mappedSt.getDate()} ${ST_MONTH_NAMES[mappedSt.getMonth()]} ${formatStYearInActiveEra(mappedSt)}`;
+
+        state.lastCalcResult = {
+          ct: { ivcYear: ctIvcYear, monthIndex: monthIdx, dayOfMonth: day },
+          st: new Date(mappedSt.getFullYear(), mappedSt.getMonth(), mappedSt.getDate())
+        };
+      } else {
+        const day = parseInt(document.getElementById('calc-st-day').value, 10) || 1;
+        const monthIdx = parseInt(document.getElementById('calc-st-month').value, 10) || 0;
+        const rawYear = parseInt(document.getElementById('calc-st-year').value, 10);
+        const enteredYear = isNaN(rawYear) ? (state.era === 'IVC' ? 5326 : 2026) : rawYear;
+
+        const astroYear = state.era === 'IVC' ? stIvcYearToAstroCe(enteredYear, monthIdx) : enteredYear;
+        const stDate = new Date(0);
+        stDate.setFullYear(astroYear, monthIdx, day);
+        stDate.setHours(0, 0, 0, 0);
+
+        const mappedCt = getCansacianFromMs(stDate.getTime());
+        resLabel.textContent = `Cansacian Date (${eraTag})`;
+        resMain.textContent = `${mappedCt.dayOfMonth} ${mappedCt.monthName} ${formatCtYearInActiveEra(mappedCt.ivcYear)} (${mappedCt.anquar})`;
+
+        state.lastCalcResult = {
+          ct: {
+            ivcYear: mappedCt.ivcYear,
+            monthIndex: mappedCt.monthIndex,
+            dayOfMonth: mappedCt.dayOfMonth
+          },
+          st: stDate
+        };
+      }
+    }
+
+    function jumpToCalculatedDate() {
+      if (!state.lastCalcResult) runDateCalculation();
+      const { ct, st } = state.lastCalcResult;
+
+      state.selectedCt = { ...ct };
+      state.selectedSt = new Date(st.getFullYear(), st.getMonth(), st.getDate());
+
+      if (state.system === 'CT') {
+        state.viewYear = ct.ivcYear;
+        state.viewMonth = ct.monthIndex;
+      } else {
+        state.viewYear = st.getFullYear();
+        state.viewMonth = st.getMonth();
+      }
+
+      toggleConverterModal(false);
+      renderCalendar();
+      updateInspector();
+      tickClock();
+    }
+
+    window.addEventListener('DOMContentLoaded', initApp);
+  </script>
+</body>
+</html>
